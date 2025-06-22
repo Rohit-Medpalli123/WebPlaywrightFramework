@@ -3,7 +3,7 @@ Pytest fixtures for Weather Shopper tests
 """
 import pytest
 from playwright.sync_api import Page
-from utils.browser_factory import BrowserFactory
+from factories.browser_factory import BrowserFactory
 from config.config import Config
 import os
 

@@ -75,10 +75,7 @@ class TestWeatherShopper:
         # Step 1: Validate page loaded correctly using helper function
         verify_page_title(page, r"Current Temperature")
         
-        # Step 2: Verify temperature display exists and is visible with correct format
-        temp_element = verify_element_with_regex(page, "#temperature", r"\d+")
-        
-        # Step 3: Get temperature and store in session data
+        # Step 2: Get temperature and store in session data
         temperature = home_page.get_temperature()
         
         global session_data

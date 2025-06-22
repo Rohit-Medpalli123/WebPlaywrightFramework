@@ -5,7 +5,7 @@ import pytest
 from loguru import logger
 from typing import Tuple, List, Dict
 from utils.logger import LoggerSetup
-from pages.page_factory import PageFactory
+from factories.page_factory import PageFactory
 
 
 # Global state to maintain test flow
