@@ -1,0 +1,25 @@
+Use the playwright MCP server to navigate to the website and perform the actions.
+
+Automate below workflow:
+
+Make script configurable to run across chrome,firefox,IE,Safari,edge
+a) visit ://weathershopper.pythonanywhere.com/
+b) Get the temperature
+c) Based on temperature choose to buy sunscreen or moisturizer,Shop for moisturizers if the weather is below 19 degrees. Shop for suncreens if the weather is above 34 degrees.
+d) If you choose sunscreen, Add two sunscreens to your cart. First, select the least expensive sunscreen that is SPF-50. For your second sunscreen, select the least expensive sunscreen that is SPF-30. Click on the cart when you are done.
+e) If you choose moisturizer, Add two moisturizers to your cart. First, select the least expensive mositurizer that contains Aloe. For your second moisturizer, select the least expensive moisturizer that contains almond. Click on cart when you are done.
+f) Verify the cart,you should have same 2 items in your cart that you have added
+g) Make a payment (For card details refer --> https://stripe.com/docs/testing#cards) The website has dummy card numbers. 
+h) Verify that the payment was successful or not, if yes verify PAYMENT SUCCESS message
+i) Close the browser
+Now generate the python code using playwright MCP server to execute the above workflow. Follow the below instructions once you have generated the code through MCP server
+
+Solution Expectations:
+1. Code should be designed within Standard Page Object Model pattern,use the proper names for the folders and files.
+2. Use Page Factory pattern
+3. Use pytest for testing and use the necessary pytest features
+4. Follow the best practices of coding.
+5. Code should work without any error
+6. Use valid required assertions
+7. Create a README.md and requirements.txt file in the root directory of the project
+ 
