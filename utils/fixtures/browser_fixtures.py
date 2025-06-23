@@ -33,8 +33,8 @@ def browser_setup(setup):
     # Use a fixed browser type for the session
     browser_type = "chromium"
     
-    # Set up logger once for the entire test session
-    LoggerSetup.setup_logger(browser_type, session=True)
+    # Set up logger with timestamp-based log files for better history tracking
+    LoggerSetup.setup_logger(browser_type, session=False)
     logger.info(f"Starting test session with {browser_type} browser - all tests will execute sequentially")
     
     page = setup
