@@ -19,9 +19,11 @@ class ProductPageLocators:
 
 
 class CartPageLocators:
+    CART_TABLE = "table.table"
     CART_ITEMS = "table.table-striped tbody tr"
     CART_ITEM_NAME = "td:nth-child(1)"
     CART_ITEM_PRICE = "td:nth-child(2)"
+    CART_TOTAL = "#total"
     PAY_BUTTON = "button.stripe-button-el"
 
 

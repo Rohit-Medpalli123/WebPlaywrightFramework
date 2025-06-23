@@ -6,8 +6,8 @@ to reduce duplication and standardize verification approaches across tests.
 """
 import re
 import os
-from typing import Optional, Pattern, Union, List, Dict, Any
-from playwright.sync_api import Page, Locator, expect
+from typing import Dict, List, Optional, Pattern, Tuple, Union
+from playwright.sync_api import Page, expect, Locator, FrameLocator
 from loguru import logger
 
 def verify_url(page: Page, expected_pattern: str, case_sensitive: bool = False) -> None:
@@ -73,12 +73,12 @@ def verify_navigation(page: Page, url_pattern: str, heading: Optional[str] = Non
         verify_page_heading(page, heading, heading_selector)
 
 
-def verify_element_visible(page: Page, selector: str, timeout: Optional[int] = None) -> Locator:
+def verify_element_visible(page: Page, selector_or_locator: Union[str, Locator], timeout: Optional[int] = None) -> Locator:
     """Verify an element is visible on the page
     
     Args:
         page: Playwright page object
-        selector: CSS selector for the element
+        selector_or_locator: Either a CSS selector string or a Playwright Locator object
         timeout: Optional custom timeout in milliseconds
         
     Returns:
@@ -87,8 +87,16 @@ def verify_element_visible(page: Page, selector: str, timeout: Optional[int] = N
     Raises:
         AssertionError: If the element is not visible
     """
-    logger.info(f"Verifying element is visible: {selector}")
-    element = page.locator(selector)
+    # Handle both string selectors and locator objects
+    if isinstance(selector_or_locator, str):
+        desc = selector_or_locator
+        element = page.locator(selector_or_locator)
+    else:
+        # It's already a locator
+        desc = str(selector_or_locator)
+        element = selector_or_locator
+        
+    logger.info(f"Verifying element is visible: {desc}")
     
     # Set timeout if provided
     expect_options = {}
@@ -96,7 +104,7 @@ def verify_element_visible(page: Page, selector: str, timeout: Optional[int] = N
         expect_options['timeout'] = timeout
     
     expect(element).to_be_visible(**expect_options)
-    logger.debug(f"Element visible: {selector}")
+    logger.debug(f"Element visible: {desc}")
     return element
 
 
@@ -121,14 +129,15 @@ def verify_element_enabled(page: Page, selector: str) -> Locator:
     return element
 
 
-def verify_text_content(page: Page, selector: str, expected_text: str, exact: bool = False) -> Locator:
+def verify_text_content(page: Page, selector_or_locator: Union[str, Locator], expected_text: Union[str, Pattern], exact: bool = False, timeout: Optional[int] = None) -> Locator:
     """Verify an element contains the expected text
     
     Args:
         page: Playwright page object
-        selector: CSS selector for the element
-        expected_text: Text expected to be in the element
+        selector_or_locator: Either a CSS selector string or a Playwright Locator object
+        expected_text: Text or pattern expected to be in the element
         exact: Whether to match the exact text or just check if it contains the text
+        timeout: Optional custom timeout in milliseconds
         
     Returns:
         Locator: The verified element locator
@@ -136,16 +145,33 @@ def verify_text_content(page: Page, selector: str, expected_text: str, exact: bo
     Raises:
         AssertionError: If the element does not contain the expected text
     """
-    logger.info(f"Verifying text content: {expected_text} in {selector}")
-    element = page.locator(selector)
-    expect(element).to_be_visible()
+    # Handle both string selectors and locator objects
+    if isinstance(selector_or_locator, str):
+        desc = selector_or_locator
+        element = page.locator(selector_or_locator)
+    else:
+        # It's already a locator
+        desc = str(selector_or_locator)
+        element = selector_or_locator
+        
+    # Describe the expected text/pattern for logging
+    pattern_desc = expected_text.pattern if hasattr(expected_text, 'pattern') else expected_text
+    logger.info(f"Verifying text content: {pattern_desc} in {desc}")
+    
+    # Ensure element is visible first
+    verify_element_visible(page, element, timeout)
+    
+    # Set timeout if provided
+    expect_options = {}
+    if timeout:
+        expect_options['timeout'] = timeout
     
     if exact:
-        expect(element).to_have_text(expected_text)
+        expect(element).to_have_text(expected_text, **expect_options)
     else:
-        expect(element).to_contain_text(expected_text)
+        expect(element).to_contain_text(expected_text, **expect_options)
         
-    logger.debug(f"Text verification passed: {expected_text}")
+    logger.debug(f"Text verification passed: {pattern_desc}")
     return element
 
 
@@ -210,13 +236,14 @@ def verify_page_title(page: Page, expected_title: str, exact: bool = False) -> N
     logger.debug(f"Page title verification passed: {page.title()}")
 
 
-def verify_element_with_regex(page: Page, selector: str, pattern: str) -> Locator:
+def verify_element_with_regex(page: Page, selector_or_locator: Union[str, Locator], pattern: str, timeout: Optional[int] = None) -> Locator:
     """Verify element exists and contains text matching pattern
     
     Args:
         page: Playwright page object
-        selector: CSS selector for the element
+        selector_or_locator: Either a CSS selector string or a Playwright Locator object
         pattern: Regex pattern to match against element text
+        timeout: Optional custom timeout in milliseconds
     
     Returns:
         Locator: The element locator object
@@ -224,12 +251,9 @@ def verify_element_with_regex(page: Page, selector: str, pattern: str) -> Locato
     Raises:
         AssertionError: If element is not visible or text doesn't match pattern
     """
-    logger.info(f"Verifying element {selector} matches pattern: {pattern}")
-    element = page.locator(selector)
-    expect(element).to_be_visible()
-    expect(element).to_contain_text(re.compile(pattern))
-    logger.debug(f"Element {selector} matches pattern: {pattern}")
-    return element
+    # We can now reuse our refactored verify_text_content function
+    # It will handle both string selectors and locator objects
+    return verify_text_content(page, selector_or_locator, re.compile(pattern), exact=False, timeout=timeout)
 
 
 def verify_cart_not_empty(page: Page, cart_selector: str = "#cart") -> Locator:
@@ -251,6 +275,85 @@ def verify_cart_not_empty(page: Page, cart_selector: str = "#cart") -> Locator:
     expect(cart).not_to_contain_text("Empty")
     logger.debug("Cart is verified to be not empty")
     return cart
+
+
+def verify_frame_element_visible(page: Page, frame_locator: FrameLocator, selector: str, timeout: Optional[int] = None) -> Locator:
+    """Verify an element within a frame is visible
+    
+    Args:
+        page: Playwright page object
+        frame_locator: Playwright FrameLocator object
+        selector: CSS selector for the element within the frame
+        timeout: Optional custom timeout in milliseconds
+        
+    Returns:
+        Locator: The verified element locator
+        
+    Raises:
+        AssertionError: If the element is not visible
+    """
+    logger.info(f"Verifying frame element is visible: {selector}")
+    element = frame_locator.locator(selector)
+    
+    # Set timeout if provided
+    expect_options = {}
+    if timeout:
+        expect_options['timeout'] = timeout
+    
+    expect(element).to_be_visible(**expect_options)
+    logger.debug(f"Frame element visible: {selector}")
+    return element
+
+
+def verify_frame_element_enabled(page: Page, frame_locator: FrameLocator, selector: str, timeout: Optional[int] = None) -> Locator:
+    """Verify an element within a frame is enabled
+    
+    Args:
+        page: Playwright page object
+        frame_locator: Playwright FrameLocator object
+        selector: CSS selector for the element within the frame
+        timeout: Optional custom timeout in milliseconds
+        
+    Returns:
+        Locator: The verified element locator
+        
+    Raises:
+        AssertionError: If the element is not enabled
+    """
+    logger.info(f"Verifying frame element is enabled: {selector}")
+    element = frame_locator.locator(selector)
+    
+    # Set timeout if provided
+    expect_options = {}
+    if timeout:
+        expect_options['timeout'] = timeout
+    
+    expect(element).to_be_enabled(**expect_options)
+    logger.debug(f"Frame element enabled: {selector}")
+    return element
+
+
+def extract_number_from_text(text: str) -> int:
+    """Extract the first numeric value from a text string
+    
+    Args:
+        text: Text string that may contain numbers
+        
+    Returns:
+        int: The extracted number
+        
+    Raises:
+        ValueError: If no numeric value could be extracted
+    """
+    logger.debug(f"Extracting number from text: {text}")
+    match = re.search(r'\d+', text)
+    if not match:
+        logger.error(f"Failed to extract numeric value from text: {text}")
+        raise ValueError(f"Could not extract numeric value from: {text}")
+        
+    number = int(match.group())
+    logger.debug(f"Extracted number: {number}")
+    return number
 
 
 def capture_failure_artifacts(page: Page, test_name: str, error_dir: str = "./errors") -> Dict[str, str]:

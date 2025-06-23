@@ -23,6 +23,7 @@ import re
 from loguru import logger
 from config.config import Config
 from playwright.sync_api import Page, expect
+from locators.locators import CartPageLocators
 from utils.test_helpers import (
     verify_url,
     verify_page_heading,
@@ -139,9 +140,8 @@ class TestWeatherShopper:
             product_selection: Tuple containing (pages_dict, product_type, temperature)
         """
         try:
-            pages, product_type_result, _ = product_selection
-            # Extract just the product type string from the tuple if needed
-            product_type = product_type_result[0] if isinstance(product_type_result, tuple) else product_type_result
+            pages, product_type, _ = product_selection
+            # product_type is now directly provided by the fixture as a simple string
             product_page = pages["product"]
             page = product_page.page
             
@@ -194,17 +194,16 @@ class TestWeatherShopper:
         test_name = "test_04_cart_verification"
         try:
             # Extract data from fixture
-            pages, added_items, product_type_result = products_added_to_cart
-            # Extract just the product type string from the tuple if needed
-            product_type = product_type_result[0] if isinstance(product_type_result, tuple) else product_type_result
+            pages, product_type, added_items = products_added_to_cart
+            # product_type is now directly provided by the fixture as a simple string
             cart_page = pages["cart"]
             page = cart_page.page
             
             # Step 1: Verify we're on the cart page using helper functions
             verify_navigation(page, "cart", "Checkout")
             
-            # Verify pay button is enabled using our helper
-            pay_button = verify_element_enabled(page, ".stripe-button-el")
+            # Verify pay button is enabled using our helper and proper locator
+            pay_button = verify_element_enabled(page, CartPageLocators.PAY_BUTTON)
             
             # Step 2: Access session state for the expected items
             global session_data
@@ -277,7 +276,7 @@ class TestWeatherShopper:
             logger.info(f"Proceeding to payment with total price: {total_price}")
             
             # Verify pay button is enabled before proceeding
-            pay_button = verify_element_enabled(page, ".stripe-button-el")
+            pay_button = verify_element_enabled(page, CartPageLocators.PAY_BUTTON)
             
             # Step 2: Navigate to payment with enhanced return values for better error handling
             payment_success, payment_message = cart_page.proceed_to_payment()
@@ -300,15 +299,9 @@ class TestWeatherShopper:
             
             # Step 4: Verify we're redirected to the success page after payment
             try:
-                # This can take time, so use a longer timeout
-                verify_url(page, "confirmation", case_sensitive=False)
-                
-                # Verify the success message is present
-                success_element = verify_text_content(
-                    page, 
-                    ".text-justify", 
-                    "Your payment was successful"
-                )
+                # Use the payment page's verify_payment_success method instead of duplicating logic
+                if not payment_page.verify_payment_success():
+                    raise AssertionError("Payment verification failed")
                 
                 logger.success("Test 5: Successfully completed payment workflow")
             except Exception as success_error:

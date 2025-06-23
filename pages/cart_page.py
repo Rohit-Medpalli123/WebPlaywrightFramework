@@ -2,12 +2,12 @@
 Cart page for verifying added items and proceeding to payment
 """
 from pages.base_page import BasePage
-from locators.locators import CartPageLocators
+from locators.locators import CartPageLocators, PaymentPageLocators
 from typing import List, Dict, Union, Tuple
 from loguru import logger
 import re
 from playwright.sync_api import expect
-from utils.test_helpers import verify_element_visible, verify_element_enabled, verify_element_count, capture_failure_artifacts
+from utils.test_helpers import verify_element_visible, verify_element_enabled, verify_element_count, capture_failure_artifacts, extract_number_from_text, verify_frame_element_visible
 
 class CartPage(BasePage):
     """Cart page class for Weather Shopper application"""
@@ -38,8 +38,8 @@ class CartPage(BasePage):
         try:
             items = []
             
-            # First verify the cart table exists using our helper
-            verify_element_visible(self.page, "table.table")
+            # First verify the cart table exists using our helper and proper locator
+            verify_element_visible(self.page, CartPageLocators.CART_TABLE)
             
             # Get all cart rows using locator
             cart_rows_locator = self.page.locator(CartPageLocators.CART_ITEMS)
@@ -146,14 +146,38 @@ class CartPage(BasePage):
             capture_failure_artifacts(self.page, "cart_verification_exception")
             return False
     
-    def get_total_price(self) -> int:
-        """Get the total price of all items in the cart
+    def get_displayed_total(self) -> int:
+        """Get the total price displayed on the cart page
         
+        Returns:
+            Total price as integer from the UI
+        """
+        logger.info("Extracting displayed total from cart page UI")
+        
+        # Get the total element using our locator
+        total_element = self.page.locator(CartPageLocators.CART_TOTAL)
+        verify_element_visible(self.page, total_element)
+        
+        # Extract the text content
+        total_text = total_element.text_content()
+        logger.debug(f"Raw total text from UI: {total_text}")
+        
+        # Use our helper function to extract the numeric part
+        # Format is typically "Total: Rupees XXX"
+        total = extract_number_from_text(total_text)
+        logger.debug(f"Extracted total: {total}")
+        return total
+        
+    def calculate_total_from_items(self, items: List[Dict]) -> int:
+        """Calculate the total price from a list of cart items
+        
+        Args:
+            items: List of cart items with price information
+            
         Returns:
             Total price as integer
         """
-        cart_items = self.get_cart_items()
-        return sum(item["price"] for item in cart_items)
+        return sum(item["price"] for item in items)
         
     def verify_total_price(self) -> int:
         """Verify the displayed total price matches the calculated sum of item prices
@@ -166,10 +190,12 @@ class CartPage(BasePage):
         """
         logger.info("Verifying cart total price")
         
-        # Get cart items and calculate expected total
+        # Get cart items once to avoid duplicate DOM queries
         cart_items = self.get_cart_items()
-        displayed_total = self.get_total_price()
-        calculated_total = sum(item["price"] for item in cart_items)
+        
+        # Get displayed total and calculate expected total
+        displayed_total = self.get_displayed_total()
+        calculated_total = self.calculate_total_from_items(cart_items)
         
         # Verify totals match
         if displayed_total != calculated_total:
@@ -196,15 +222,15 @@ class CartPage(BasePage):
             pay_button.click()
             
             # Wait for Stripe iframe to appear
-            stripe_frame = self.page.frame_locator(".stripe_checkout_app")
+            stripe_frame = self.page.frame_locator(PaymentPageLocators.PAYMENT_FRAME)
             logger.info("Waiting for payment form iframe to load")
             
-            # Verify payment form iframe is loaded - use the direct selector
-            verify_element_visible(self.page, ".stripe_checkout_app")
+            # Verify payment form iframe is loaded - use the locator from PaymentPageLocators
+            verify_element_visible(self.page, PaymentPageLocators.PAYMENT_FRAME)
             
             # Extra validation that email field is visible within the frame
-            email_input = stripe_frame.locator("input#email")
-            expect(email_input).to_be_visible(timeout=10000)  # Longer timeout for iframe loading
+            # Use our frame-specific helper function
+            verify_frame_element_visible(self.page, stripe_frame, PaymentPageLocators.EMAIL_FIELD, timeout=10000)  # Longer timeout for iframe loading
             logger.info("Successfully loaded payment form")
             
             return True, "Payment form loaded successfully"

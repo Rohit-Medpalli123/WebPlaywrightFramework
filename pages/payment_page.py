@@ -13,7 +13,9 @@ from utils.test_helpers import (
     verify_url,
     verify_text_content,
     verify_navigation,
-    capture_failure_artifacts
+    capture_failure_artifacts,
+    verify_frame_element_visible,
+    verify_frame_element_enabled
 )
 
 class PaymentPage(BasePage):
@@ -40,56 +42,40 @@ class PaymentPage(BasePage):
             # Switch to payment iframe using Playwright's frame_locator
             payment_frame = self.page.frame_locator(PaymentPageLocators.PAYMENT_FRAME)
             logger.info("Successfully located payment frame")
-            
-            # Fill email field
-            logger.info("Filling email field...")
-            email_locator = payment_frame.locator(PaymentPageLocators.EMAIL_FIELD)
-            expect(email_locator).to_be_visible(timeout=5000)
-            expect(email_locator).to_be_enabled()
+
+            # Verify and fill email field
+            # Use our frame-specific helper functions
+            email_locator = verify_frame_element_visible(self.page, payment_frame, PaymentPageLocators.EMAIL_FIELD, timeout=5000)
+            verify_frame_element_enabled(self.page, payment_frame, PaymentPageLocators.EMAIL_FIELD)
+            logger.info("Filling email field")
             email_locator.fill(Config.PAYMENT["email"])
             
-            # Fill card number (this usually reveals other fields)
-            logger.info("Filling card number...")
-            card_number_locator = payment_frame.locator(PaymentPageLocators.CARD_NUMBER_FIELD)
-            expect(card_number_locator).to_be_visible()
-            expect(card_number_locator).to_be_enabled()
+            # Verify and fill card number field
+            # Use our frame-specific helper functions
+            card_number_locator = verify_frame_element_visible(self.page, payment_frame, PaymentPageLocators.CARD_NUMBER_FIELD)
+            verify_frame_element_enabled(self.page, payment_frame, PaymentPageLocators.CARD_NUMBER_FIELD)
+            logger.info("Filling card number field")
             card_number_locator.fill(Config.PAYMENT["card_number"])
             
-            # Wait slightly to ensure form updates (some stripe forms need this)
-            self.page.wait_for_timeout(1000)
-            
-            # Fill expiry date
-            logger.info("Filling expiry date...")
-            expiry_locator = payment_frame.locator(PaymentPageLocators.EXPIRY_FIELD)
-            expect(expiry_locator).to_be_visible()
-            expect(expiry_locator).to_be_enabled()
+            # Verify and fill expiry field
+            # Use our frame-specific helper functions
+            expiry_locator = verify_frame_element_visible(self.page, payment_frame, PaymentPageLocators.EXPIRY_FIELD)
+            verify_frame_element_enabled(self.page, payment_frame, PaymentPageLocators.EXPIRY_FIELD)
+            logger.info("Filling expiry date field")
             expiry_locator.fill(f"{Config.PAYMENT['expiry_month']}{Config.PAYMENT['expiry_year']}")
-            
-            # Fill CVC
-            logger.info("Filling CVC...")
-            cvc_locator = payment_frame.locator(PaymentPageLocators.CVC_FIELD)
-            expect(cvc_locator).to_be_visible()
-            expect(cvc_locator).to_be_enabled()
+                        
+            # Verify and fill CVC field
+            # Use our frame-specific helper functions
+            cvc_locator = verify_frame_element_visible(self.page, payment_frame, PaymentPageLocators.CVC_FIELD)
+            verify_frame_element_enabled(self.page, payment_frame, PaymentPageLocators.CVC_FIELD)
+            logger.info("Filling CVC field")
             cvc_locator.fill(Config.PAYMENT["cvc"])
-            
-            # Try to fill ZIP code if it exists
-            try:
-                # Check if ZIP field exists and is visible
-                zip_locator = payment_frame.locator(PaymentPageLocators.ZIP_FIELD)
-                if zip_locator.count() > 0:
-                    logger.info("ZIP field found, filling it...")
-                    expect(zip_locator).to_be_visible(timeout=2000)
-                    zip_locator.fill(Config.PAYMENT.get("zip", "12345"))
-                    logger.info("ZIP code entered")
-            except Exception as e:
-                # This is not critical, just log and continue
-                logger.debug(f"ZIP field not found or not required: {str(e)}")
             
             # Wait for and click the pay button
             logger.info("Locating pay button...")
-            pay_button = payment_frame.locator(PaymentPageLocators.PAY_BUTTON)
-            expect(pay_button).to_be_visible()
-            expect(pay_button).to_be_enabled()
+            # Use our frame-specific helper functions
+            pay_button = verify_frame_element_visible(self.page, payment_frame, PaymentPageLocators.PAY_BUTTON)
+            verify_frame_element_enabled(self.page, payment_frame, PaymentPageLocators.PAY_BUTTON)
             logger.info("Ready to submit payment")
             
             # Click pay button and expect navigation
@@ -128,10 +114,11 @@ class PaymentPage(BasePage):
             )
             
             # Verify text content with helper
+            # The actual text on the page is "PAYMENT SUCCESS"
             verify_text_content(
                 self.page,
                 PaymentPageLocators.PAYMENT_SUCCESS_MESSAGE,
-                "Your payment was successful"
+                "PAYMENT SUCCESS"
             )
             
             logger.success("Payment completed successfully")

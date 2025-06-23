@@ -54,7 +54,7 @@ class ProductPage(BasePage):
             # Wait for page to stabilize (keep this as it's still useful)
             self.page.wait_for_load_state('networkidle', timeout=5000)
             
-            # Use locator API instead of query_selector_all (more modern Playwright pattern)
+            # Get all product elements
             product_elements = containers_locator.all()
             
             # Extract product information using modern locator patterns
@@ -66,10 +66,10 @@ class ProductPage(BasePage):
                     price_locator = element.locator(ProductPageLocators.PRODUCT_PRICE)
                     add_button_locator = element.locator(ProductPageLocators.ADD_BUTTON)
                     
-                    # Verify all components are present
-                    expect(name_locator).to_be_visible()
-                    expect(price_locator).to_be_visible()
-                    expect(add_button_locator).to_be_visible()
+                    # Verify all components are present using our improved unified helper functions
+                    verify_element_visible(self.page, name_locator)
+                    verify_element_visible(self.page, price_locator)
+                    verify_element_visible(self.page, add_button_locator)
                     
                     # Extract text content
                     name = name_locator.text_content().strip()
@@ -119,9 +119,9 @@ class ProductPage(BasePage):
             # Click the button using the locator
             button_locator.click()
             
-            # Wait for and verify cart update
+            # Wait for and verify cart update using our improved unified helper function
             logger.debug("Verifying cart indicator update")
-            expect(cart_button).to_contain_text(re.compile(r"\d+"), timeout=5000)
+            verify_text_content(self.page, cart_button, re.compile(r"\d+"), timeout=5000)
             
             # Verify the count increased
             post_count_text = cart_button.text_content() or ""
@@ -177,19 +177,11 @@ class ProductPage(BasePage):
         
         matching_products = []
         
-        # Simple matching strategy based on criteria type
-        if criteria_type.lower() == 'ingredient':
-            # For ingredients - case-insensitive substring match is sufficient
-            matching_products = [product for product in products 
-                                if criteria.lower() in product["name"].lower()]
-            logger.info(f"Found {len(matching_products)} products with {criteria}")
-            
-        elif criteria_type.lower() == 'spf':
-            # For SPF - case-insensitive match for the SPF string
-            matching_products = [product for product in products 
-                                if criteria.lower() in product["name"].lower()]
-            logger.info(f"Found {len(matching_products)} products with {criteria}")
-        
+        # Simple matching strategy - case-insensitive substring match works for both ingredient and SPF
+        matching_products = [product for product in products 
+                           if criteria.lower() in product["name"].lower()]
+        logger.info(f"Found {len(matching_products)} products with {criteria} ({criteria_type})")
+
         # Check if we found any matching products
         if not matching_products:
             error_msg = f"No products found matching {criteria_type}={criteria}"

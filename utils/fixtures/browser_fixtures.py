@@ -99,20 +99,16 @@ def product_selection(loaded_home_page):
     # Log the current state for debugging
     logger.debug(f"Current session data: temperature={session_data.get('temperature')}, product_type={session_data.get('product_type')}")
     
-    # Just use what's in the session data - the test_02 should have set these
+    # Just use what's in the session data - test_02 stored these as simple values
     temperature = session_data.get('temperature')
-    product_type_result = session_data.get('product_type')
-    
-    # Handle product_type which may now be a tuple (product_type, success) after refactoring
-    # Only extract the product_type string from tuple if needed
-    product_type = product_type_result[0] if isinstance(product_type_result, tuple) else product_type_result
+    product_type = session_data.get('product_type')
     
     # Validate state before proceeding
     if temperature is None or product_type is None:
         logger.warning(f"Missing session data - temperature: {temperature}, product_type: {product_type}")
     
-    # Return the original product_type_result to maintain compatibility with both old and new code
-    yield (pages, product_type_result, temperature)
+    # Return values needed by the test
+    yield (pages, product_type, temperature)
 
 
 @pytest.fixture(scope="function")
@@ -124,10 +120,7 @@ def products_added_to_cart(product_selection):
         Tuple with pages, added_items, and product_type
     """
     global session_data
-    pages, product_type_result, _ = product_selection
-    
-    # Handle the new tuple return type from choose_product_based_on_temperature
-    product_type = product_type_result[0] if isinstance(product_type_result, tuple) else product_type_result
+    pages, product_type, _ = product_selection
     
     # Validate the session state before proceeding
     logger.info(f"products_added_to_cart fixture: Current session state:")
@@ -146,7 +139,7 @@ def products_added_to_cart(product_selection):
         logger.warning(f"Not on cart page as expected. Current URL: {current_url}")
         # Don't navigate again - this would disrupt the sequential flow
     
-    yield (pages, added_items, product_type)
+    yield (pages, product_type, added_items)
 
 
 @pytest.fixture(scope="function")
