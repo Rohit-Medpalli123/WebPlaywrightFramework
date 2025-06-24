@@ -30,8 +30,10 @@ def browser_setup(setup):
     Returns:
         Tuple with page object and initialized page_factory dictionary
     """
-    # Use a fixed browser type for the session
-    browser_type = "chromium"
+    # Get browser type from environment variable or default to chromium
+    # When running parallel tests, each browser process will have its own PYTEST_LOG_BROWSER variable
+    import os
+    browser_type = os.environ.get("PYTEST_LOG_BROWSER", "chromium")
     
     # Set up logger with timestamp-based log files for better history tracking
     LoggerSetup.setup_logger(browser_type, session=False)

@@ -44,7 +44,7 @@ WeatherShopper/
 
 ## Running Tests
 
-To run tests with the default browser (Chromium):
+To run tests with the default browser (Chromium browser, non-headless):
 ```
 python run_tests.py
 ```
@@ -57,6 +57,17 @@ or
 ```
 python run_tests.py webkit
 ```
+
+# Run with Firefox in headless mode
+python run_tests.py --browser firefox --headless
+
+# Run tests across all browser types sequentially
+python run_tests.py --browser all
+
+# Run tests across all browser types in parallel (requires pytest-xdist)
+pip install pytest-xdist
+python run_tests.py --browser all --parallel
+
 
 You can also run tests directly with pytest:
 ```
